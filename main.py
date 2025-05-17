@@ -1,4 +1,9 @@
-from src.masks import get_mask_account, get_mask_card_number
+from src.widget import mask_account_card, get_date
 
-print(get_mask_card_number("1234567812345678"))
-print(get_mask_account("12345678901"))
+account_card = input(str("Введите номер счета или карты "))
+
+print(mask_account_card(account_card))
+
+user_date = input(str("Введите дату "))
+
+print(get_date(user_date))

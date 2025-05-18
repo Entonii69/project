@@ -17,5 +17,5 @@ def mask_account_card(account_card: str) -> str:
 
 def get_date(user_data: str) -> str:
     """Функция которая меняет формат даты"""
-    date = '"' + user_data[9:11] + "." + user_data[6:8] + "." + user_data[1:5] + '"'
+    date = '"' + user_data[8:10] + "." + user_data[5:7] + "." + user_data[:4] + '"'
     return date

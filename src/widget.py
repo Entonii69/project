@@ -3,7 +3,7 @@ from src.masks import get_mask_account, get_mask_card_number
 
 def mask_account_card(account_card: str) -> str:
     """Функция которая обрабатывает номер карты и счета"""
-    if account_card[:4] == "Счет": # Проверяем, ввели номер счета или карты
+    if account_card[:4] == "Счет":  # Проверяем, ввели номер счета или карты
         # Маскируем номер счета
         account = account_card[5:]
         mask_account = account_card[:5] + get_mask_account(account)

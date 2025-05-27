@@ -13,7 +13,7 @@ def filter_by_state(operations: list[dict], state: str = 'EXECUTED') -> list[dic
     new_operations = []
     for operation in operations:
         for value_state in operation.values():
-            if value_state == 'EXECUTED':
+            if value_state == state:
                 new_operations.append(operation)
     return new_operations
 

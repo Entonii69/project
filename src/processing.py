@@ -11,7 +11,7 @@ def filter_by_state(operations: list[dict], state: str = 'EXECUTED') -> list[dic
 
 
 def sort_by_date(operations: list[dict], reverse: bool = True) -> list[dict]:
-    """Функция сортирует списокок по дате"""
+    """Функция сортирует список по дате"""
     def get_date(operation: dict) -> datetime:
         """Функция преобразует строку даты в объект datetime"""
         return datetime.strptime(operation['date'], '%Y-%m-%dT%H:%M:%S.%f')

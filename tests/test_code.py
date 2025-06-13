@@ -9,21 +9,14 @@ def test_get_mask_card_number(fixture_get_mask_card_number):
     # Проверка корректной маскировки 16-значного номера
     assert get_mask_card_number(fixture_get_mask_card_number) == "4276 38** **** 9432"
 
+@pytest.mark.parametrize("incorrect_data",
+                         [("123456789012345"), ("12345678901234567"),
+                          (""), ("abcd123456789012"), ("123456789012abcd"),
+                          ("1234-5678-9012-3"), ("12@4?6789!123456")])
+def test_get_mask_card_number(incorrect_data):
     # Проверка обработки некорректных входных данных
     with pytest.raises(ValueError):
-        get_mask_card_number("123456789012345")  # Меньше 16 цифр
-    with pytest.raises(ValueError):
-        get_mask_card_number("12345678901234567")  # Больше 16 цифр
-    with pytest.raises(ValueError):
-        get_mask_card_number("")  # Пустая строка
-
-    # Проверка с нечисловыми символами
-    with pytest.raises(ValueError):
-        get_mask_card_number("abcd123456789012")  # Буквы в начале
-    with pytest.raises(ValueError):
-        get_mask_card_number("123456789012abcd")  # Буквы в конце
-    with pytest.raises(ValueError):
-        get_mask_card_number("1234-5678-9012-3")  # Символы дефиса
+        get_mask_card_number(incorrect_data)
 
 
 def test_get_mask_account(fixture_get_mask_account):

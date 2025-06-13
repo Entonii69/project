@@ -19,6 +19,6 @@ def mask_account_card(account_card: str) -> str:
 def get_date(user_data: str) -> str:
     """Функция которая меняет формат даты"""
     if user_data == "":
-        raise "Отсутствует дата"
+        raise ValueError("Отсутствует дата")
     date = datetime.strptime(user_data, "%Y-%m-%dT%H:%M:%S.%f")
     return date.strftime("%d.%m.%Y")

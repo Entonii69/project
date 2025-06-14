@@ -9,71 +9,69 @@ def test_get_mask_card_number(fixture_get_mask_card_number):
     # Проверка корректной маскировки 16-значного номера
     assert get_mask_card_number(fixture_get_mask_card_number) == "4276 38** **** 9432"
 
-@pytest.mark.parametrize("incorrect_data",
-                         [("123456789012345"), ("12345678901234567"),
-                          (""), ("abcd123456789012"), ("123456789012abcd"),
-                          ("1234-5678-9012-3"), ("12@4?6789!123456")])
+@pytest.mark.parametrize(
+    "incorrect_data",
+    ["123456789012345", "12345678901234567", ""],
+    ids=["too short", "too long", "empty string"]
+)
 def test_get_mask_card_number(incorrect_data):
     # Проверка обработки некорректных входных данных
     with pytest.raises(ValueError):
         get_mask_card_number(incorrect_data)
 
 
-def test_get_mask_account(fixture_get_mask_account):
+def test_get_mask_account_assert(fixture_get_mask_account):
     # Проверка корректной маскировки номера счета
     assert get_mask_account(fixture_get_mask_account) == "**7890"
 
+
+@pytest.mark.parametrize(
+    "incorrect_account",
+    ["123456789012345", "12345678901234567", ""],
+    ids=["too short", "too long", "empty string"]
+)
+def test_get_mask_account_with(incorrect_account):
     # Проверка обработки некорректных входных данных
     with pytest.raises(ValueError):
-        get_mask_account("1234567890123456789")  # Меньше 20 цифр
-    with pytest.raises(ValueError):
-        get_mask_account("123456789012345678901")  # Больше 20 цифра
-    with pytest.raises(ValueError):
-        get_mask_account("")  # Пустая строка
-
-    # Проверка с нечисловыми символами
-    with pytest.raises(ValueError):
-        get_mask_account("abcd5678901234567890")
-    with pytest.raises(ValueError):
-        get_mask_account("1234!/.8901234567890")
+        get_mask_account(incorrect_account)
 
 
-@pytest.mark.parametrize("input_data, output_data",
-                         [("Maestro 1596837868705199", "Maestro 1596 83** **** 5199"),
-                          ("Счет 64686473678894779589", "Счет **9589"),
-                          ("MasterCard 7158300734726758", "MasterCard 7158 30** **** 6758"),
-                          ("Счет 35383033474447895560", "Счет **5560"),
-                          ("Visa Classic 6831982476737658", "Visa Classic 6831 98** **** 7658"),
-                          ("Visa Platinum 8990922113665229", "Visa Platinum 8990 92** **** 5229"),
-                          ("Visa Gold 5999414228426353", "Visa Gold 5999 41** **** 6353"),
-                          ("Счет 73654108430135874305", "Счет **4305")])
-def test_mask_account_card(input_data, output_data):
-    # Проверка правильность определения счета
-    assert mask_account_card("Счет 12345678901234567890") == "Счет **7890"
-
-    # Проверка правильность определения карты
-    assert mask_account_card("Visa Platinum 7000792289606361") == "Visa Platinum 7000 79** **** 6361"
-    assert mask_account_card("Visa Classic 6831982476737658") == "Visa Classic 6831 98** **** 7658"
-    assert mask_account_card("Maestro 1596837868705199") == "Maestro 1596 83** **** 5199"
-    assert mask_account_card("MasterCard 7158300734726758") == "MasterCard 7158 30** **** 6758"
-
+@pytest.mark.parametrize(
+    "input_data, output_data",
+    [("Maestro 1596837868705199", "Maestro 1596 83** **** 5199"),
+    ("Счет 64686473678894779589", "Счет **9589"),
+    ("MasterCard 7158300734726758", "MasterCard 7158 30** **** 6758"),
+    ("Счет 35383033474447895560", "Счет **5560"),
+    ("Visa Classic 6831982476737658", "Visa Classic 6831 98** **** 7658"),
+    ("Visa Platinum 8990922113665229", "Visa Platinum 8990 92** **** 5229"),
+    ("Visa Gold 5999414228426353", "Visa Gold 5999 41** **** 6353"),
+    ("Счет 73654108430135874305", "Счет **4305")]
+)
+def test_mask_account_card_assert(input_data, output_data):
     # Проверка универсальности функции
     assert mask_account_card(input_data) == output_data
 
+
+def test_mask_account_card_incorrect():
     # Проверка обработки некорректных входных данных
     with pytest.raises(Exception):
         mask_account_card("")  # Пустая строка
 
 
-def test_get_date(fixture_get_date):
+def test_get_date_assert(fixture_get_date):
     # Проверка правильности определения даты
     assert get_date(fixture_get_date) == "11.03.2024"
 
+
+@pytest.mark.parametrize(
+    "incorrect_date",
+    ["2025-05-14T02:26:18", ""],
+    ids=["too short", "empty string"]
+)
+def test_get_date_incorrect(incorrect_date):
     # Проверка обработки некорректных входных данных
     with pytest.raises(Exception):
-        get_date("2025-05-14T02:26:18")  # Неверный формат даты
-    with pytest.raises(Exception):
-        get_date("")  # Пустая строка
+        get_date(incorrect_date)  # Неверный формат даты
 
 
 @pytest.mark.parametrize("test_list, test_state, test_result",

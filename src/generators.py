@@ -28,8 +28,8 @@ def card_number_generator(start: int, stop: int):
         yield formatted_card
 
 
-if __name__ == "__main__":
-    main(
-        start = 1,
-    stop = 9999999999999999
+if __name__ == "__card_number_generator__":
+    card_number_generator(
+        start=1,
+        stop=9999999999999999
     )

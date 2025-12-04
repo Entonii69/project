@@ -15,6 +15,7 @@ def fixture_get_mask_account():
 def fixture_get_date():
     return "2024-03-11T02:26:18.671407"
 
+
 @pytest.fixture
 def fixture_get_transactions():
     return [
@@ -43,4 +44,3 @@ def fixture_get_transactions():
             "to": "Счет 75651667383060284188"
         }
     ]
-

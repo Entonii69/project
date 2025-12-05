@@ -1,5 +1,5 @@
-from src.widget import get_date, mask_account_card
 from src.generators import filter_by_currency, transaction_descriptions
+from src.widget import get_date, mask_account_card
 
 account_card = input(str("Введите номер счета или карты "))
 

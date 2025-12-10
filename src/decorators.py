@@ -4,6 +4,9 @@ from typing import Any, Callable
 
 
 def log(filename: str = None) -> Decorator:
+    """Декоратор, который будет автоматически логировать начало и конец выполнения функции,
+    а также ее результаты или возникшие ошибки. Декоратор принимает необязательный аргумент
+    filename, который определяет, куда будут записываться логи."""
     # Настраиваем базовую конфигурацию логирования
     logger = logging.getLogger('function_logger')
     logger.setLevel(logging.INFO)

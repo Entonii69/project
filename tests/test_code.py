@@ -1,8 +1,15 @@
-import pytest
+import json
+import unittest
+from unittest.mock import MagicMock, mock_open, patch
 
+import pytest
+import requests
+
+from src.external_api import convert_to_rubles
 from src.generators import card_number_generator, filter_by_currency, transaction_descriptions
 from src.masks import get_mask_account, get_mask_card_number
 from src.processing import filter_by_state, sort_by_date
+from src.utils import load_financial_transactions
 from src.widget import get_date, mask_account_card
 
 
@@ -56,7 +63,7 @@ def test_mask_account_card_assert(input_data, output_data):
     assert mask_account_card(input_data) == output_data
 
 
-def test_mask_account_card_incorrect():
+def test_mask_account_card_incorrect() -> None:
     # Проверка обработки некорректных входных данных
     with pytest.raises(Exception):
         mask_account_card("")  # Пустая строка
@@ -153,7 +160,7 @@ def test_filter_by_currency(fixture_get_transactions):
         next(usd_iter)
 
 
-def test_filter_by_currency_incorrect():
+def test_filter_by_currency_incorrect() -> None:
     transactions = [
         {
             "id": 939719570,
@@ -207,3 +214,206 @@ def test_transaction_descriptions(fixture_get_transactions):
 ])
 def test_card_number_generator(start, stop, expected):
     assert list(card_number_generator(start, stop)) == expected
+
+
+class TestConvertToRubles(unittest.TestCase):
+
+    def setUp(self):
+        """Подготовка общих данных для тестов"""
+        self.valid_transaction = {
+            "operationAmount": {
+                "amount": 100.0,
+                "currency": {"code": "USD"}
+            }
+        }
+        self.rub_transaction = {
+            "operationAmount": {
+                "amount": 500.0,
+                "currency": {"code": "RUB"}
+            }
+        }
+        self.invalid_currency_transaction = {
+            "operationAmount": {
+                "amount": 100.0,
+                "currency": {"code": "JPY"}  # не в CURRENCY
+            }
+        }
+
+    @patch("requests.get")
+    def test_rub_currency_returns_amount(self, mock_get):
+        """Если валюта — RUB, возвращается исходная сумма без запроса к API"""
+        result = convert_to_rubles(self.rub_transaction)
+        self.assertEqual(result, 500.0)
+        mock_get.assert_not_called()  # запрос к API не выполнялся
+
+    @patch("requests.get")
+    def test_valid_currency_success_response(self, mock_get):
+        """Успешная конвертация для валюты из CURRENCY (USD → RUB)"""
+        # Настраиваем мок: успешный ответ API
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"result": 9500.0}
+        mock_get.return_value = mock_response
+
+        result = convert_to_rubles(self.valid_transaction)
+
+        # Проверяем результат
+        self.assertEqual(result, 9500.0)
+
+        # Проверяем, что запрос был сделан с правильными параметрами
+        expected_url = "https://api.apilayer.com/exchangerates_data/convert?to=RUB&from=USD&amount=100.0"
+        mock_get.assert_called_with(
+            expected_url,
+            headers={"apikey": unittest.mock.ANY}  # API_KEY может быть None в тестах
+        )
+
+    @patch("requests.get")
+    def test_api_returns_error_status(self, mock_get):
+        """Если API возвращает статус != 200, функция возвращает 0.0"""
+        mock_response = MagicMock()
+        mock_response.status_code = 400
+        mock_response.text = "Bad Request"
+        mock_get.return_value = mock_response
+
+        result = convert_to_rubles(self.valid_transaction)
+
+        self.assertEqual(result, 0.0)
+        # Можно дополнительно проверить, что было напечатано сообщение (через capsys в pytest)
+
+    @patch("requests.get")
+    def test_request_exception_handled(self, mock_get):
+        """Если возникает исключение при запросе (например, нет сети), функция возвращает  0.0"""
+        mock_get.side_effect = requests.exceptions.RequestException("Network error")
+
+        result = convert_to_rubles(self.valid_transaction)
+
+        self.assertEqual(result, 0.0)
+
+    def test_currency_not_in_currency_list(self):
+        """Если валюта не в CURRENCY, функция возвращает 0.0 без запроса к API"""
+        with patch("requests.get") as mock_get:
+            result = convert_to_rubles(self.invalid_currency_transaction)
+            self.assertEqual(result, 0.0)
+            mock_get.assert_not_called()
+
+    def test_missing_operation_amount(self):
+        """Если нет 'operationAmount', функция возвращает 0.0"""
+        transaction = {}
+        result = convert_to_rubles(transaction)
+        self.assertEqual(result, 0.0)
+
+    def test_missing_amount_in_operation(self):
+        """Если в 'operationAmount' нет 'amount', возвращается 0.0"""
+        transaction = {
+            "operationAmount": {
+                "currency": {"code": "USD"}
+            }
+        }
+        result = convert_to_rubles(transaction)
+        self.assertEqual(result, 0.0)
+
+    def test_missing_currency_code(self):
+        """Если в 'currency' нет 'code', возвращается 0.0"""
+        transaction = {
+            "operationAmount": {
+                "amount": 100.0,
+                "currency": {}  # нет 'code'
+            }
+        }
+        result = convert_to_rubles(transaction)
+        self.assertEqual(result, 0.0)
+
+    @patch("requests.get")
+    def test_empty_response_json(self, mock_get):
+        """Если ответ API — пустой JSON, функция возвращает 0.0"""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {}  # пустой ответ
+        mock_get.return_value = mock_response
+
+        result = convert_to_rubles(self.valid_transaction)
+
+        self.assertEqual(result, 0.0)
+
+    @patch("requests.get")
+    def test_response_without_result_key(self, mock_get):
+        """Если в ответе API нет ключа 'result', функция возвращает 0.0"""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"some_key": "value"}  # нет 'result'
+        mock_get.return_value = mock_response
+
+        result = convert_to_rubles(self.valid_transaction)
+
+        self.assertEqual(result, 0.0)
+
+
+class TestLoadFinancialTransactions(unittest.TestCase):
+
+    def setUp(self):
+        self.valid_json_content = [
+            {"id": 1, "amount": 100.0, "currency": "USD"},
+            {"id": 2, "amount": 200.0, "currency": "EUR"}
+        ]
+        self.invalid_json_content = "{invalid json}"  # ← строка, не JSON
+        self.file_path = "test_transactions.json"
+
+    @patch("os.path.exists")
+    def test_file_not_exists(self, mock_exists):
+        mock_exists.return_value = False
+        result = load_financial_transactions(self.file_path)
+        self.assertEqual(result, [])
+        mock_exists.assert_called_with(self.file_path)
+
+    @patch("os.path.exists", return_value=True)
+    def test_valid_json_file(self, mock_exists):
+        """Если файл существует и содержит валидный JSON‑список, возвращается этот список"""
+        # Создаём мок для open с валидным JSON
+        mock_file = mock_open(read_data=json.dumps(self.valid_json_content))
+        with patch("builtins.open", mock_file):
+            result = load_financial_transactions(self.file_path)
+
+        self.assertEqual(result, self.valid_json_content)
+        mock_file.assert_called_once_with(self.file_path, 'r', encoding='utf-8')
+
+    @patch("os.path.exists", return_value=True)
+    def test_invalid_json_file(self, mock_exists):
+        """Если файл содержит невалидный JSON, возвращается пустой список"""
+        # Создаём мок для open с невалидным JSON
+        mock_file = mock_open(read_data=self.invalid_json_content)
+
+        # Мокируем json.load, чтобы он выбрасывал исключение
+        with patch("builtins.open", mock_file), \
+                patch("json.load", side_effect=json.JSONDecodeError("Expecting value", "", 0)):
+            result = load_financial_transactions(self.file_path)
+
+        self.assertEqual(result, [])
+        mock_file.assert_called_once_with(self.file_path, 'r', encoding='utf-8')
+
+    @patch("os.path.exists", return_value=True)
+    def test_io_error_on_open(self, mock_exists):
+        """Если при открытии файла возникает IOError, возвращается пустой список"""
+        with patch("builtins.open", side_effect=IOError("Permission denied")):
+            result = load_financial_transactions(self.file_path)
+
+        self.assertEqual(result, [])
+
+    @patch("os.path.exists", return_value=True)
+    def test_json_not_a_list(self, mock_exists):
+        """Если JSON — не список (например, словарь), возвращается пустой список"""
+        mock_file = mock_open(read_data='{"key": "value"}')
+        with patch("builtins.open", mock_file):
+            result = load_financial_transactions(self.file_path)
+
+        self.assertEqual(result, [])
+        mock_file.assert_called_once_with(self.file_path, 'r', encoding='utf-8')
+
+    @patch("os.path.exists", return_value=True)
+    def test_empty_json_list(self, mock_exists):
+        """Если JSON — пустой список, возвращается пустой список"""
+        mock_file = mock_open(read_data='[]')
+        with patch("builtins.open", mock_file):
+            result = load_financial_transactions(self.file_path)
+
+        self.assertEqual(result, [])
+        mock_file.assert_called_once_with(self.file_path, 'r', encoding='utf-8')

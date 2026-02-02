@@ -1,12 +1,14 @@
+from datetime import datetime
+
 from src.masks import get_mask_account, get_mask_card_number
 
 
 def mask_account_card(account_card: str) -> str:
     """Функция которая обрабатывает номер карты и счета"""
-    if account_card[:4] == "Счет": # Проверяем, ввели номер счета или карты
+    if account_card.lower()[:4] == "счет":  # Проверяем, ввели номер счета или карты
         # Маскируем номер счета
         account = account_card[5:]
-        mask_account = account_card[:5] + get_mask_account(account)
+        mask_account = "Счет " + get_mask_account(account)
         return mask_account
     else:
         # Маскируем номер карты
@@ -17,5 +19,7 @@ def mask_account_card(account_card: str) -> str:
 
 def get_date(user_data: str) -> str:
     """Функция которая меняет формат даты"""
-    date = '"' + user_data[8:10] + "." + user_data[5:7] + "." + user_data[:4] + '"'
-    return date
+    if user_data == "":
+        raise ValueError("Отсутствует дата")
+    date = datetime.strptime(user_data, "%Y-%m-%dT%H:%M:%S.%f")
+    return date.strftime("%d.%m.%Y")

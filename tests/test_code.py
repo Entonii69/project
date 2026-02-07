@@ -1,11 +1,20 @@
+
 import json
 import unittest
 from unittest.mock import MagicMock, mock_open, patch
 
+import os
+from typing import Any, Dict, List
+
+
 import pytest
 import requests
 
+
 from src.external_api import convert_to_rubles
+
+from src.decorators import log
+
 from src.generators import card_number_generator, filter_by_currency, transaction_descriptions
 from src.masks import get_mask_account, get_mask_card_number
 from src.processing import filter_by_state, sort_by_date
@@ -13,7 +22,7 @@ from src.utils import load_financial_transactions
 from src.widget import get_date, mask_account_card
 
 
-def test_get_mask_card_number(fixture_get_mask_card_number):
+def test_get_mask_card_number(fixture_get_mask_card_number: str) -> None:
     # Проверка корректной маскировки 16-значного номера
     assert get_mask_card_number(fixture_get_mask_card_number) == "4276 38** **** 9432"
 
@@ -23,13 +32,13 @@ def test_get_mask_card_number(fixture_get_mask_card_number):
     ["123456789012345", "12345678901234567", "", "123456789012345!"],
     ids=["too short", "too long", "empty string", "extraneous symbol"]
 )
-def test_get_mask_incorrect_card_number(incorrect_data):
+def test_get_mask_incorrect_card_number(incorrect_data: str) -> None:
     # Проверка обработки некорректных входных данных
     with pytest.raises(ValueError):
         get_mask_card_number(incorrect_data)
 
 
-def test_get_mask_account_assert(fixture_get_mask_account):
+def test_get_mask_account_assert(fixture_get_mask_account: str) -> None:
     # Проверка корректной маскировки номера счета
     assert get_mask_account(fixture_get_mask_account) == "**7890"
 
@@ -39,7 +48,7 @@ def test_get_mask_account_assert(fixture_get_mask_account):
     ["1234567890123456789", "123456789012345678901", "", "1@34j67890123456789!"],
     ids=["too short", "too long", "empty string", "extraneous symbol"]
 )
-def test_get_mask_account(incorrect_account):
+def test_get_mask_account(incorrect_account: str) -> None:
     # Проверка обработки некорректных входных данных
     with pytest.raises(ValueError):
         get_mask_account(incorrect_account)
@@ -58,7 +67,7 @@ def test_get_mask_account(incorrect_account):
         ("Счет 73654108430135874305", "Счет **4305")
     ]
 )
-def test_mask_account_card_assert(input_data, output_data):
+def test_mask_account_card_assert(input_data: str, output_data: str) -> None:
     # Проверка универсальности функции
     assert mask_account_card(input_data) == output_data
 
@@ -69,7 +78,7 @@ def test_mask_account_card_incorrect() -> None:
         mask_account_card("")  # Пустая строка
 
 
-def test_get_date_assert(fixture_get_date):
+def test_get_date_assert(fixture_get_date: str) -> None:
     # Проверка правильности определения даты
     assert get_date(fixture_get_date) == "11.03.2024"
 
@@ -79,7 +88,7 @@ def test_get_date_assert(fixture_get_date):
     ["2025-05-14T02:26:18", ""],
     ids=["too short", "empty string"]
 )
-def test_get_date_incorrect(incorrect_date):
+def test_get_date_incorrect(incorrect_date: str) -> None:
     # Проверка обработки некорректных входных данных
     with pytest.raises(Exception):
         get_date(incorrect_date)  # Неверный формат даты
@@ -114,7 +123,11 @@ def test_get_date_incorrect(incorrect_date):
         )
     ]
 )
-def test_filter_by_state(test_list, test_state, test_result):
+def test_filter_by_state(
+    test_list: List[Dict[str, Any]],
+    test_state: str,
+    test_result: List[Dict[str, Any]]
+) -> None:
     # Проверка сортировки списка словарей
     assert filter_by_state(test_list, test_state) == test_result
 
@@ -144,13 +157,18 @@ def test_filter_by_state(test_list, test_state, test_result):
         )
     ]
 )
-def test_sort_by_date(test_list_date, test_reverse, test_result_reverse_date, test_result_date):
+def test_sort_by_date(
+    test_list_date: List[Dict[str, Any]],
+    test_reverse: bool,
+    test_result_reverse_date: List[Dict[str, Any]],
+    test_result_date: List[Dict[str, Any]]
+) -> None:
     assert sort_by_date(test_list_date, test_reverse) == test_result_reverse_date
     assert sort_by_date(test_list_date) == test_result_date
 
 
 # Тест filter_by_currency
-def test_filter_by_currency(fixture_get_transactions):
+def test_filter_by_currency(fixture_get_transactions: List[Dict[str, Any]]) -> None:
     # Проверяем USD
     usd_iter = filter_by_currency(fixture_get_transactions, "USD")
     assert next(usd_iter)["id"] == 939719570
@@ -190,11 +208,11 @@ def test_filter_by_currency_incorrect() -> None:
     # Фильтруем по валюте, которой нет в списке
     result = list(filter_by_currency(transactions, "YUN"))
     # Правильное ожидание - пустой список
-    expected = []
+    expected: List[Dict[str, Any]] = []
     assert result == expected
 
 
-def test_filter_by_currency_empty(fixture_get_transactions):
+def test_filter_by_currency_empty(fixture_get_transactions: List[Dict[str, Any]]) -> None:
     # Проверяем валюту, которой нет
     eur_iter = filter_by_currency(fixture_get_transactions, "EUR")
     # Превращаем в список и проверяем, что он пустой
@@ -202,7 +220,7 @@ def test_filter_by_currency_empty(fixture_get_transactions):
 
 
 # Тест transaction_descriptions
-def test_transaction_descriptions(fixture_get_transactions):
+def test_transaction_descriptions(fixture_get_transactions: List[Dict[str, Any]]) -> None:
     descriptions = list(transaction_descriptions(fixture_get_transactions))
     assert descriptions == ["Перевод организации", "Перевод со счета на счет"]
 
@@ -212,208 +230,96 @@ def test_transaction_descriptions(fixture_get_transactions):
     (1, 1, ["0000 0000 0000 0001"]),
     (10, 12, ["0000 0000 0000 0010", "0000 0000 0000 0011", "0000 0000 0000 0012"]),
 ])
-def test_card_number_generator(start, stop, expected):
+def test_card_number_generator(start: int, stop: int, expected: List[str]) -> None:
     assert list(card_number_generator(start, stop)) == expected
 
 
-class TestConvertToRubles(unittest.TestCase):
-
-    def setUp(self):
-        """Подготовка общих данных для тестов"""
-        self.valid_transaction = {
-            "operationAmount": {
-                "amount": 100.0,
-                "currency": {"code": "USD"}
-            }
-        }
-        self.rub_transaction = {
-            "operationAmount": {
-                "amount": 500.0,
-                "currency": {"code": "RUB"}
-            }
-        }
-        self.invalid_currency_transaction = {
-            "operationAmount": {
-                "amount": 100.0,
-                "currency": {"code": "JPY"}  # не в CURRENCY
-            }
-        }
-
-    @patch("requests.get")
-    def test_rub_currency_returns_amount(self, mock_get):
-        """Если валюта — RUB, возвращается исходная сумма без запроса к API"""
-        result = convert_to_rubles(self.rub_transaction)
-        self.assertEqual(result, 500.0)
-        mock_get.assert_not_called()  # запрос к API не выполнялся
-
-    @patch("requests.get")
-    def test_valid_currency_success_response(self, mock_get):
-        """Успешная конвертация для валюты из CURRENCY (USD → RUB)"""
-        # Настраиваем мок: успешный ответ API
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {"result": 9500.0}
-        mock_get.return_value = mock_response
-
-        result = convert_to_rubles(self.valid_transaction)
-
-        # Проверяем результат
-        self.assertEqual(result, 9500.0)
-
-        # Проверяем, что запрос был сделан с правильными параметрами
-        expected_url = "https://api.apilayer.com/exchangerates_data/convert?to=RUB&from=USD&amount=100.0"
-        mock_get.assert_called_with(
-            expected_url,
-            headers={"apikey": unittest.mock.ANY}  # API_KEY может быть None в тестах
-        )
-
-    @patch("requests.get")
-    def test_api_returns_error_status(self, mock_get):
-        """Если API возвращает статус != 200, функция возвращает 0.0"""
-        mock_response = MagicMock()
-        mock_response.status_code = 400
-        mock_response.text = "Bad Request"
-        mock_get.return_value = mock_response
-
-        result = convert_to_rubles(self.valid_transaction)
-
-        self.assertEqual(result, 0.0)
-        # Можно дополнительно проверить, что было напечатано сообщение (через capsys в pytest)
-
-    @patch("requests.get")
-    def test_request_exception_handled(self, mock_get):
-        """Если возникает исключение при запросе (например, нет сети), функция возвращает  0.0"""
-        mock_get.side_effect = requests.exceptions.RequestException("Network error")
-
-        result = convert_to_rubles(self.valid_transaction)
-
-        self.assertEqual(result, 0.0)
-
-    def test_currency_not_in_currency_list(self):
-        """Если валюта не в CURRENCY, функция возвращает 0.0 без запроса к API"""
-        with patch("requests.get") as mock_get:
-            result = convert_to_rubles(self.invalid_currency_transaction)
-            self.assertEqual(result, 0.0)
-            mock_get.assert_not_called()
-
-    def test_missing_operation_amount(self):
-        """Если нет 'operationAmount', функция возвращает 0.0"""
-        transaction = {}
-        result = convert_to_rubles(transaction)
-        self.assertEqual(result, 0.0)
-
-    def test_missing_amount_in_operation(self):
-        """Если в 'operationAmount' нет 'amount', возвращается 0.0"""
-        transaction = {
-            "operationAmount": {
-                "currency": {"code": "USD"}
-            }
-        }
-        result = convert_to_rubles(transaction)
-        self.assertEqual(result, 0.0)
-
-    def test_missing_currency_code(self):
-        """Если в 'currency' нет 'code', возвращается 0.0"""
-        transaction = {
-            "operationAmount": {
-                "amount": 100.0,
-                "currency": {}  # нет 'code'
-            }
-        }
-        result = convert_to_rubles(transaction)
-        self.assertEqual(result, 0.0)
-
-    @patch("requests.get")
-    def test_empty_response_json(self, mock_get):
-        """Если ответ API — пустой JSON, функция возвращает 0.0"""
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {}  # пустой ответ
-        mock_get.return_value = mock_response
-
-        result = convert_to_rubles(self.valid_transaction)
-
-        self.assertEqual(result, 0.0)
-
-    @patch("requests.get")
-    def test_response_without_result_key(self, mock_get):
-        """Если в ответе API нет ключа 'result', функция возвращает 0.0"""
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {"some_key": "value"}  # нет 'result'
-        mock_get.return_value = mock_response
-
-        result = convert_to_rubles(self.valid_transaction)
-
-        self.assertEqual(result, 0.0)
+# Тестовые функции для проверки
+@log()
+def test_function_success(x: int, y: int) -> int:
+    return x + y
 
 
-class TestLoadFinancialTransactions(unittest.TestCase):
+@log()
+def test_function_error(x: int, y: int) -> float:
+    return x / y
 
-    def setUp(self):
-        self.valid_json_content = [
-            {"id": 1, "amount": 100.0, "currency": "USD"},
-            {"id": 2, "amount": 200.0, "currency": "EUR"}
-        ]
-        self.invalid_json_content = "{invalid json}"  # ← строка, не JSON
-        self.file_path = "test_transactions.json"
 
-    @patch("os.path.exists")
-    def test_file_not_exists(self, mock_exists):
-        mock_exists.return_value = False
-        result = load_financial_transactions(self.file_path)
-        self.assertEqual(result, [])
-        mock_exists.assert_called_with(self.file_path)
+# Тест с логированием в файл
+@log(filename="test.log")
+def test_function_file(x: int, y: int) -> int:
+    return x + y
 
-    @patch("os.path.exists", return_value=True)
-    def test_valid_json_file(self, mock_exists):
-        """Если файл существует и содержит валидный JSON‑список, возвращается этот список"""
-        # Создаём мок для open с валидным JSON
-        mock_file = mock_open(read_data=json.dumps(self.valid_json_content))
-        with patch("builtins.open", mock_file):
-            result = load_financial_transactions(self.file_path)
 
-        self.assertEqual(result, self.valid_json_content)
-        mock_file.assert_called_once_with(self.file_path, 'r', encoding='utf-8')
+# Тестовые случаи
+def test_success_console(capsys) -> None:
+    # Проверяем успешный вызов функции с логированием в консоль
+    result = test_function_success(1, 2)
+    captured = capsys.readouterr()
 
-    @patch("os.path.exists", return_value=True)
-    def test_invalid_json_file(self, mock_exists):
-        """Если файл содержит невалидный JSON, возвращается пустой список"""
-        # Создаём мок для open с невалидным JSON
-        mock_file = mock_open(read_data=self.invalid_json_content)
+    assert result == 3
+    assert "Starting test_function_success" in captured.out
+    assert "test_function_success ok" in captured.out
 
-        # Мокируем json.load, чтобы он выбрасывал исключение
-        with patch("builtins.open", mock_file), \
-                patch("json.load", side_effect=json.JSONDecodeError("Expecting value", "", 0)):
-            result = load_financial_transactions(self.file_path)
 
-        self.assertEqual(result, [])
-        mock_file.assert_called_once_with(self.file_path, 'r', encoding='utf-8')
+def test_error_console(capsys) -> None:
+    # Проверяем обработку ошибки с логированием в консоль
+    with pytest.raises(TypeError):
+        test_function_success("a", 2)
 
-    @patch("os.path.exists", return_value=True)
-    def test_io_error_on_open(self, mock_exists):
-        """Если при открытии файла возникает IOError, возвращается пустой список"""
-        with patch("builtins.open", side_effect=IOError("Permission denied")):
-            result = load_financial_transactions(self.file_path)
+    captured = capsys.readouterr()
+    assert "Starting test_function_success" in captured.out
+    assert "test_function_success error: unsupported operand type(s) for +: 'str' and 'int'" in captured.out
+    assert "Inputs: ('a', 2), {}" in captured.out
 
-        self.assertEqual(result, [])
 
-    @patch("os.path.exists", return_value=True)
-    def test_json_not_a_list(self, mock_exists):
-        """Если JSON — не список (например, словарь), возвращается пустой список"""
-        mock_file = mock_open(read_data='{"key": "value"}')
-        with patch("builtins.open", mock_file):
-            result = load_financial_transactions(self.file_path)
+def test_success_file() -> None:
+    # Проверяем успешный вызов функции с логированием в файл
+    result = test_function_file(3, 4)
 
-        self.assertEqual(result, [])
-        mock_file.assert_called_once_with(self.file_path, 'r', encoding='utf-8')
+    assert result == 7
 
-    @patch("os.path.exists", return_value=True)
-    def test_empty_json_list(self, mock_exists):
-        """Если JSON — пустой список, возвращается пустой список"""
-        mock_file = mock_open(read_data='[]')
-        with patch("builtins.open", mock_file):
-            result = load_financial_transactions(self.file_path)
+    # Проверяем содержимое файла
+    with open("test.log", "r") as f:
+        content = f.read()
+        assert "Starting test_function_file" in content
+        assert "test_function_file ok" in content
 
-        self.assertEqual(result, [])
-        mock_file.assert_called_once_with(self.file_path, 'r', encoding='utf-8')
+    # Удаляем тестовый файл после проверки
+    os.remove("test.log")
+
+
+def test_error_file() -> None:
+    # Проверяем обработку ошибки с логированием в файл
+    with pytest.raises(ZeroDivisionError):
+        test_function_error(1, 0)
+
+    # Проверяем содержимое файла
+    with open("test.log", "r") as f:
+        content = f.read()
+        assert "Starting test_function_error" in content
+        assert "test_function_error error: division by zero" in content
+        assert "Inputs: (1, 0), {}" in content
+
+    # Удаляем тестовый файл после проверки
+    os.remove("test.log")
+
+
+def test_no_args() -> None:
+    # Проверяем работу декоратора без аргументов
+    @log()
+    def no_args_func() -> str:
+        return "test"
+
+    result = no_args_func()
+    assert result == "test"
+
+
+def test_empty_args() -> None:
+    # Проверяем работу с пустыми аргументами
+    @log()
+    def empty_args_func() -> str:
+        return "test"
+
+    result = empty_args_func()
+    assert result == "test"

@@ -6,10 +6,12 @@ from typing import Dict, List
 # Настройка логгера для модуля utils
 # Указываем путь к файлу логов
 log_utils_path = r"D:\shcool\pythonProject1\logs\utils.log"
+# Указываем путь к JSON файлу
+file_path = r"D:\shcool\pythonProject1\data\operations.json"
 
 logging.basicConfig(
     filename=log_utils_path,
-    filemode='a',           # режим: 'a' (дописывать) или 'w' (перезаписывать)
+    filemode='w',           # режим: 'a' (дописывать) или 'w' (перезаписывать)
     level=logging.DEBUG,
     format='%(asctime)s [%(name)s] %(levelname)s: %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S',

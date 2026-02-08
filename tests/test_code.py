@@ -2,9 +2,12 @@ import json
 import unittest
 from unittest.mock import MagicMock, mock_open, patch
 
+import pandas as pd
 import pytest
 import requests
+from pandas.errors import EmptyDataError, ParserError
 
+from src.CSV_Excel_file_reader import read_csv_operations, read_excel_operations
 from src.external_api import convert_to_rubles
 from src.generators import card_number_generator, filter_by_currency, transaction_descriptions
 from src.masks import get_mask_account, get_mask_card_number
@@ -417,3 +420,124 @@ class TestLoadFinancialTransactions(unittest.TestCase):
 
         self.assertEqual(result, [])
         mock_file.assert_called_once_with(self.file_path, 'r', encoding='utf-8')
+
+
+class TestFinancialOperationsWithMock(unittest.TestCase):
+
+    @patch('os.path.exists')
+    def test_csv_file_not_found(self, mock_exists):
+        """Тест: файл CSV не существует."""
+        mock_exists.return_value = False
+
+        with self.assertRaises(FileNotFoundError) as context:
+            read_csv_operations("nonexistent.csv")
+
+        self.assertIn("Файл не найден", str(context.exception))
+
+    @patch('os.path.exists', return_value=True)
+    @patch('pandas.read_csv')
+    def test_csv_empty_file(self, mock_read_csv, mock_exists):
+        """Тест: CSV-файл пуст."""
+        mock_read_csv.return_value = pd.DataFrame()  # пустой DataFrame
+
+        with self.assertRaises(EmptyDataError) as context:
+            read_csv_operations("empty.csv")
+
+        self.assertEqual(str(context.exception), "Файл пуст.")
+
+    @patch('os.path.exists', return_value=True)
+    @patch('pandas.read_csv', side_effect=ParserError("Malformed CSV"))
+    def test_csv_parser_error(self, mock_read_csv, mock_exists):
+        """Тест: ошибка парсинга CSV."""
+        with self.assertRaises(ParserError) as context:
+            read_csv_operations("bad.csv")
+
+        self.assertIn("Ошибка парсинга CSV", str(context.exception))
+
+    @patch('os.path.exists', return_value=True)
+    @patch('pandas.read_csv', side_effect=Exception("Unknown error"))
+    def test_csv_unexpected_error(self, mock_read_csv, mock_exists):
+        """Тест: неожиданная ошибка при чтении CSV."""
+        with self.assertRaises(Exception) as context:
+            read_csv_operations("error.csv")
+
+        self.assertIn("Неожиданная ошибка при чтении CSV", str(context.exception))
+
+    @patch('os.path.exists', return_value=True)
+    @patch('pandas.read_csv')
+    def test_csv_success(self, mock_read_csv, mock_exists):
+        """Тест: успешное чтение CSV."""
+        # Подменяем результат read_csv
+        mock_df = pd.DataFrame({
+            'date': ['2023-10-01'],
+            'amount': [1000],
+            'category': ['Salary'],
+            'description': ['Зарплата']
+        })
+        mock_read_csv.return_value = mock_df
+
+        result = read_csv_operations("valid.csv")
+
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]['amount'], 1000)
+        self.assertEqual(result[0]['category'], 'Salary')
+
+    # --- Тесты для Excel ---
+
+    @patch('os.path.exists')
+    def test_excel_file_not_found(self, mock_exists):
+        """Тест: файл Excel не существует."""
+        mock_exists.return_value = False
+
+        with self.assertRaises(FileNotFoundError) as context:
+            read_excel_operations("nonexistent.xlsx")
+
+        self.assertIn("Файл не найден", str(context.exception))
+
+    @patch('os.path.exists', return_value=True)
+    @patch('pandas.read_excel')
+    def test_excel_empty_file(self, mock_read_excel, mock_exists):
+        """Тест: Excel-файл пуст."""
+        mock_read_excel.return_value = pd.DataFrame()  # пустой DataFrame
+
+        with self.assertRaises(ValueError) as context:
+            read_excel_operations("empty.xlsx")
+
+        self.assertEqual(str(context.exception), "Файл Excel пуст.")
+
+    @patch('os.path.exists', return_value=True)
+    @patch('pandas.read_excel', side_effect=ValueError("No sheet"))
+    def test_excel_no_sheet(self, mock_read_excel, mock_exists):
+        """Тест: в Excel нет листов."""
+        with self.assertRaises(ValueError) as context:
+            read_excel_operations("no_sheet.xlsx")
+
+        self.assertEqual(str(context.exception), "В файле Excel нет листов.")
+
+    @patch('os.path.exists', return_value=True)
+    @patch('pandas.read_excel', side_effect=Exception("Unknown Excel error"))
+    def test_excel_unexpected_error(self, mock_read_excel, mock_exists):
+        """Тест: неожиданная ошибка при чтении Excel."""
+        with self.assertRaises(Exception) as context:
+            read_excel_operations("error.xlsx")
+
+        self.assertIn("Неожиданная ошибка при чтении Excel", str(context.exception))
+
+    @patch('os.path.exists', return_value=True)
+    @patch('pandas.read_excel')
+    def test_excel_success(self, mock_read_excel, mock_exists):
+        """Тест: успешное чтение Excel."""
+        # Подменяем результат read_excel
+        mock_df = pd.DataFrame({
+            'date': ['2023-10-01'],
+            'amount': [1000],
+            'category': ['Salary'],
+            'description': ['Зарплата']
+        })
+        mock_read_excel.return_value = mock_df
+
+        result = read_excel_operations("valid.xlsx")
+
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]['amount'], 1000)
+        self.assertEqual(result[0]['category'], 'Salary')

@@ -15,7 +15,7 @@ def read_csv_operations(csv_path: str) -> List[Dict[str, any]]:
 
     try:
         # Читаем CSV
-        df = pd.read_csv(csv_path, encoding='utf-8')
+        df = pd.read_csv(csv_path, sep=';', encoding='utf-8')
 
         # Проверяем, что данные есть
         if df.empty:
@@ -31,7 +31,6 @@ def read_csv_operations(csv_path: str) -> List[Dict[str, any]]:
         raise pd.errors.ParserError(f"Ошибка парсинга CSV: {e}")
     except Exception as e:
         raise Exception(f"Неожиданная ошибка при чтении CSV: {e}")
-
 
 # Указываем путь к EXCEL файлу
 excel_path = r"D:\shcool\pythonProject1\data\transactions_excel.xlsx"
